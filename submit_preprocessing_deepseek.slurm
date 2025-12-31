@@ -21,17 +21,6 @@ if [ ! -d "venv" ]; then
     exit 1
 fi
 
-# Activate virtual environment
-source venv/bin/activate
-if [ $? -ne 0 ]; then
-    echo "ERROR: Failed to activate virtual environment"
-    exit 1
-fi
-
-# Create necessary directories
-mkdir -p data/cache
-mkdir -p data/processed
-mkdir -p logs
 
 # Set environment variables
 export TRANSFORMERS_CACHE=./data/cache

@@ -5,7 +5,7 @@ trl>=0.8.0  # Updated for SFTTrainer with tokenizer parameter
 datasets>=2.14.0
 accelerate>=0.27.0  # Updated for better multi-GPU support
 peft>=0.10.0  # Updated for latest LoRA features
-bitsandbytes>=0.41.0
+bitsandbytes>=0.44.0  # Updated for H100/CUDA 12.x support with pre-built wheels
 
 # Training utilities
 deepspeed>=0.12.0

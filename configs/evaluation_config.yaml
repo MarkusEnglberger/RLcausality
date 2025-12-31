@@ -1,0 +1,27 @@
+# Evaluation Configuration
+# Configuration file for evaluate_model.py
+
+# Model configuration
+#model_path: "./models/grpo_model/checkpoint-100"  # Path to model checkpoint (SFT or GRPO)
+model_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+use_4bit: true  # Use 4-bit quantization for model loading
+
+# Dataset configuration
+subsets:  # Test subsets to evaluate on
+  - default
+  # - perturbation_by_refactorization
+  # - perturbation_by_paraphrasing
+
+# Data source configuration
+use_local_data: true  # Use locally preprocessed data instead of HuggingFace
+local_data_path: "./data/processed/grpo_deepseek"  # Path to local preprocessed dataset
+cache_dir: "./data/cache"  # Cache directory for HuggingFace datasets
+
+# Evaluation configuration
+max_samples: 100  # Maximum number of samples to evaluate (null = all)
+batch_size: 8  # Batch size for evaluation
+max_new_tokens: 512  # Maximum number of new tokens to generate
+
+# Output configuration
+output_dir: "./evaluation_results"  # Directory to save evaluation results
+show_samples: 3  # Number of example predictions to display during evaluation

@@ -14,26 +14,6 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 
 
-def format_sft_prompt_deepseek(tokenizer, input_text: str) -> str:
-    """
-    Format SFT prompt using DeepSeek-R1's chat template.
-    DeepSeek-R1 recommendation: No system prompt, use user prompt only.
-    """
-    messages = [
-        {
-            "role": "user",
-            "content": (
-                f"Premise and Hypothesis:\n{input_text}\n\n"
-                f"Is the hypothesis consistent with the premise? Answer with 'Yes' or 'No'."
-            )
-        }
-    ]
-
-    # Use chat template with generation prompt for the prompt part
-    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    return prompt
-
-
 def format_grpo_query_deepseek(tokenizer, input_text: str) -> str:
     """
     Format GRPO query using DeepSeek-R1's chat template with reasoning encouragement.
@@ -46,7 +26,6 @@ def format_grpo_query_deepseek(tokenizer, input_text: str) -> str:
                 "You are an expert in causal reasoning. Given a premise describing "
                 "statistical relationships between variables, determine if the stated "
                 "causal hypothesis is consistent with the given information.\n\n"
-                "Think step by step"
                 "After your reasoning, provide your final answer as either \"Therefore: Yes\" or \"Therefore: No\".\n\n"
                 f"Premise and Hypothesis:\n{input_text}\n\n"
             )
@@ -57,86 +36,6 @@ def format_grpo_query_deepseek(tokenizer, input_text: str) -> str:
     formatted = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return formatted
 
-
-def preprocess_for_sft(args):
-    """Preprocess dataset for SFT training with DeepSeek-R1-Distill-Qwen-7B."""
-    print("=" * 80)
-    print("Preprocessing Corr2Cause dataset for SFT with DeepSeek-R1-Distill-Qwen-7B")
-    print("=" * 80)
-
-    # Load tokenizer
-    print(f"\nLoading tokenizer from {args.model_name}...")
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.model_name,
-        trust_remote_code=True,
-        cache_dir=args.cache_dir
-    )
-
-    # Set pad token if needed
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        print(f"Set pad_token to eos_token: {tokenizer.eos_token}")
-
-    # Load dataset
-    print(f"\nLoading dataset from HuggingFace...")
-    dataset = load_dataset(
-        'causal-nlp/corr2cause',
-        cache_dir=args.cache_dir
-    )
-
-    print(f"Dataset loaded:")
-    print(f"  Train: {len(dataset['train'])} examples")
-    print(f"  Validation: {len(dataset['validation'])} examples")
-    print(f"  Test: {len(dataset['test'])} examples")
-
-    # Format answers
-    def format_answer(label: int) -> str:
-        """Convert binary label to text answer."""
-        return "Yes" if label == 1 else "No"
-
-    # Process function
-    def process_sft_example(example):
-        """Process single example for SFT."""
-        input_text = example['input']
-        label = example['label']
-        answer = format_answer(label)
-
-        # Format using DeepSeek-R1 chat template
-        prompt = format_sft_prompt_deepseek(tokenizer, input_text)
-
-        # Complete text includes answer
-        full_text = f"{prompt}{answer}"
-
-        return {
-            'text': full_text,
-            'prompt': prompt,
-            'completion': answer,
-            'label': label
-        }
-
-    # Process all splits
-    print("\nProcessing SFT dataset...")
-    processed_dataset = dataset.map(
-        process_sft_example,
-        remove_columns=dataset['train'].column_names,
-        desc="Formatting for SFT"
-    )
-
-    # Save processed dataset
-    output_path = os.path.join(args.output_dir, "sft_deepseek")
-    os.makedirs(output_path, exist_ok=True)
-
-    print(f"\nSaving processed SFT dataset to {output_path}...")
-    processed_dataset.save_to_disk(output_path)
-    print("SFT dataset saved!")
-
-    # Print example
-    print("\n" + "=" * 80)
-    print("Example SFT formatted data:")
-    print("=" * 80)
-    print(processed_dataset['train'][0]['text'][:800] + "...\n")
-
-    return processed_dataset
 
 
 def preprocess_for_grpo(args):
@@ -240,13 +139,6 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     os.makedirs(args.cache_dir, exist_ok=True)
 
-    # Run preprocessing
-    if args.stage in ["sft", "both"]:
-        sft_dataset = preprocess_for_sft(args)
-        print(f"\nSFT dataset sizes:")
-        print(f"  Train: {len(sft_dataset['train'])}")
-        print(f"  Validation: {len(sft_dataset['validation'])}")
-        print(f"  Test: {len(sft_dataset['test'])}")
 
     if args.stage in ["grpo", "both"]:
         grpo_dataset = preprocess_for_grpo(args)

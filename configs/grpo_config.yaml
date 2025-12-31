@@ -4,8 +4,8 @@
 # Model configuration
 model_name_or_path: "./models/sft_model"  # Path to SFT checkpoint
 use_flash_attention: false
-max_prompt_length: 1024
-max_completion_length: 1024  # Changed from max_length
+max_prompt_length: 512
+max_completion_length: 512  # Changed from max_length
 
 # LoRA configuration (for GRPO fine-tuning)
 use_lora: true
@@ -19,15 +19,15 @@ dataset_path: "./data/processed/grpo"
 max_train_samples: 5000  # Limit to 5k samples for faster training
 
 # Output configuration
-output_dir: "./models/grpo_model"
+output_dir: "./grpo_model"
 
 # GRPO-specific training arguments
 # Multi-GPU: These settings enable DDP automatically
 
 # Batch sizes (can be larger for smaller model)
-per_device_train_batch_size: 4  # Increased for 1.5B model
+per_device_train_batch_size: 4 
 per_device_eval_batch_size: 4
-gradient_accumulation_steps: 4  # Effective batch size = 4 * 4 * num_gpus
+gradient_accumulation_steps: 8  # Effective batch size = 4 * 4 * num_gpus
 
 # Learning rate
 learning_rate: 1.0e-6  # Slightly higher for smaller model
@@ -72,5 +72,5 @@ ddp_timeout: 3600
 
 # Other
 seed: 42
-dataloader_num_workers: 2
+dataloader_num_workers: 8
 remove_unused_columns: false
