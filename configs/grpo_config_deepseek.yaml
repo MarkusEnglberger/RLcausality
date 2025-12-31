@@ -1,0 +1,90 @@
+# GRPO Training Configuration
+# Optimized for DeepSeek-R1-Distill-Qwen-7B (7B parameter model)
+# DeepSeek-R1 is specifically trained for reasoning, making it ideal for GRPO
+
+# Model configuration
+#model_name_or_path: "./models/deepseek_sft_model"  # Path to DeepSeek SFT checkpoint
+model_name_or_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+use_flash_attention: false
+max_prompt_length: 1024
+max_completion_length: 2048 # Reduced to save memory during generation
+
+# LoRA configuration (for GRPO fine-tuning)
+use_lora: true
+lora_r: 32  # Moderate rank for GRPO adapters
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules: "q_proj,v_proj,k_proj,o_proj,gate_proj,up_proj,down_proj"
+
+# Quantization (using 8-bit for better DeepSpeed ZeRO-3 compatibility)
+# 4-bit has dtype issues with DeepSpeed parameter gathering during generation
+use_4bit: false
+use_8bit: true
+
+# Data configuration
+dataset_path: "./data/processed/grpo_deepseek"
+max_train_samples: 10000  # Limit to 5k samples for faster training
+
+# Output configuration
+output_dir: "./models/deepseek_grpo_model"
+
+# GRPO-specific training arguments
+# Multi-GPU: These settings enable DDP automatically
+
+# Batch sizes (for DeepSpeed ZeRO-3)
+per_device_train_batch_size: 4  # Use 1 with DeepSpeed for maximum memory savings
+per_device_eval_batch_size: 8  # Must be 2 so global batch (2*2=4) is divisible by num_generations (4)
+gradient_accumulation_steps: 32  # Increased to maintain effective batch size
+
+# Learning rate (very low for GRPO on large model)
+learning_rate: 5.0e-7  # Conservative for 7B model
+lr_scheduler_type: "cosine"
+warmup_ratio: 0.1
+
+# Training steps
+num_train_epochs: 1
+max_steps: -1
+
+# GRPO hyperparameters
+num_generations: 4  # Number of samples to generate per prompt
+temperature: 0.6  # DeepSeek-R1 recommended temperature (0.5-0.7)
+beta: 0.05  # KL divergence coefficient
+
+# Optimization
+optim: "adamw_torch"
+weight_decay: 0.01
+max_grad_norm: 1.0
+gradient_checkpointing: true  # Essential for 7B model
+
+# Mixed precision (depends on GPU generation)
+bf16: false  # Set to true for Ampere+ GPUs (A100, RTX 3090+)
+fp16: true  # Use fp16 for Turing GPUs (RTX 2080 Ti)
+tf32: false  # Enable on Ampere+ GPUs
+
+# Evaluation
+eval_strategy: "steps"
+eval_steps: 50
+save_strategy: "steps"
+save_steps: 50
+save_total_limit: 3
+
+# Logging
+logging_steps: 5
+logging_first_step: true
+report_to: "none"
+
+# Distributed training
+ddp_find_unused_parameters: false
+ddp_timeout: 3600
+
+# Other
+seed: 42
+dataloader_num_workers: 2
+remove_unused_columns: false
+
+# DeepSeek-R1 specific notes:
+# - Model is pre-trained with reasoning chains using <think> tags
+# - Naturally suited for GRPO due to reasoning capabilities
+# - Temperature 0.6 recommended (range: 0.5-0.7)
+# - No system prompts needed - use user prompts only
+# - Longer completions expected due to reasoning chains

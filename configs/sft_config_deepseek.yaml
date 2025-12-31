@@ -1,0 +1,82 @@
+# SFT Training Configuration
+# Optimized for DeepSeek-R1-Distill-Qwen-7B (7B parameter model)
+
+# Model configuration
+model_name_or_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+use_flash_attention: false
+max_seq_length: 1024  # Increased for 7B model with reasoning capabilities
+
+# LoRA configuration
+use_lora: true
+lora_r: 64  # Higher rank for larger model
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules: "q_proj,v_proj,k_proj,o_proj,gate_proj,up_proj,down_proj"  # Qwen2.5 architecture
+
+# Quantization (4-bit recommended for 7B model)
+use_4bit: true  # Required for 7B model on 11GB GPUs
+use_8bit: false
+
+# Data configuration
+dataset_path: "./data/processed/sft_deepseek"
+max_train_samples: 10000  # Limit to 10k samples (set to null for full dataset)
+
+# Output configuration
+output_dir: "./models/deepseek_sft_model"
+
+# Training arguments
+# Multi-GPU: These settings enable DDP automatically when multiple GPUs are available
+
+# Batch sizes (conservative for 7B model)
+per_device_train_batch_size: 1
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 32  # Effective batch size = 1 * 32 * 2 GPUs = 64
+
+# Learning rate (lower for larger model)
+learning_rate: 2.0e-5  # Conservative for 7B model
+lr_scheduler_type: "cosine"
+warmup_ratio: 0.03
+
+# Training steps
+num_train_epochs: 3
+max_steps: -1  # Set to specific number if you want to limit steps
+
+# Optimization
+optim: "adamw_torch"
+weight_decay: 0.01
+max_grad_norm: 1.0
+gradient_checkpointing: true  # Essential for 7B model
+
+# Mixed precision (RTX 2080 Ti uses fp16)
+bf16: false  # RTX 2080 Ti doesn't support bf16 (requires Ampere+)
+fp16: true  # Use fp16 for Turing GPUs
+tf32: false  # Disabled - GPU doesn't support TF32
+
+# Evaluation
+eval_strategy: "steps"
+eval_steps: 100
+save_strategy: "steps"
+save_steps: 100
+save_total_limit: 3
+load_best_model_at_end: false  # Disabled to avoid OOM
+metric_for_best_model: "eval_loss"
+
+# Logging
+logging_steps: 10
+logging_first_step: true
+report_to: "none"
+
+# Distributed training
+ddp_find_unused_parameters: false
+ddp_timeout: 3600
+
+# Other
+seed: 42
+dataloader_num_workers: 4
+remove_unused_columns: false
+
+# DeepSeek-specific notes:
+# - Model supports 32768 token context (we use 1024 for memory efficiency)
+# - Recommended temperature: 0.5-0.7 (0.6 default) for inference
+# - Avoid system prompts - use user prompts only
+# - Model is pre-trained for reasoning with <think> tags

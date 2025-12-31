@@ -1,0 +1,76 @@
+# GRPO Training Configuration
+# Optimized for Qwen2.5-1.5B
+
+# Model configuration
+model_name_or_path: "./models/sft_model"  # Path to SFT checkpoint
+use_flash_attention: false
+max_prompt_length: 1024
+max_completion_length: 1024  # Changed from max_length
+
+# LoRA configuration (for GRPO fine-tuning)
+use_lora: true
+lora_r: 16  # Smaller rank for additional GRPO adapters
+lora_alpha: 16
+lora_dropout: 0.05
+lora_target_modules: "q_proj,v_proj,k_proj,o_proj,gate_proj,up_proj,down_proj"
+
+# Data configuration
+dataset_path: "./data/processed/grpo"
+max_train_samples: 5000  # Limit to 5k samples for faster training
+
+# Output configuration
+output_dir: "./models/grpo_model"
+
+# GRPO-specific training arguments
+# Multi-GPU: These settings enable DDP automatically
+
+# Batch sizes (can be larger for smaller model)
+per_device_train_batch_size: 4  # Increased for 1.5B model
+per_device_eval_batch_size: 4
+gradient_accumulation_steps: 4  # Effective batch size = 4 * 4 * num_gpus
+
+# Learning rate
+learning_rate: 1.0e-6  # Slightly higher for smaller model
+lr_scheduler_type: "cosine"
+warmup_ratio: 0.1
+
+# Training steps
+num_train_epochs: 1
+max_steps: -1
+
+# GRPO hyperparameters
+num_generations: 4  # Number of samples to generate per prompt (changed from num_generation_per_prompt)
+temperature: 0.8  # Generation temperature
+beta: 0.05  # KL divergence coefficient (changed from kl_coef)
+
+# Optimization
+optim: "adamw_torch"
+weight_decay: 0.01
+max_grad_norm: 1.0
+gradient_checkpointing: true
+
+# Mixed precision
+bf16: true
+fp16: false
+tf32: true
+
+# Evaluation
+eval_strategy: "steps"
+eval_steps: 50
+save_strategy: "steps"
+save_steps: 50
+save_total_limit: 3
+
+# Logging
+logging_steps: 5
+logging_first_step: true
+report_to: "none"  # Disabled wandb
+
+# Distributed training
+ddp_find_unused_parameters: false
+ddp_timeout: 3600
+
+# Other
+seed: 42
+dataloader_num_workers: 2
+remove_unused_columns: false
