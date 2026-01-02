@@ -14,13 +14,13 @@ subsets:  # Test subsets to evaluate on
 
 # Data source configuration
 use_local_data: true  # Use locally preprocessed data instead of HuggingFace
-local_data_path: "./data/processed/grpo_deepseek"  # Path to local preprocessed dataset
+local_data_path: "./data/processed/grpo"  # Path to local preprocessed dataset
 cache_dir: "./data/cache"  # Cache directory for HuggingFace datasets
 
 # Evaluation configuration
-max_samples: 100  # Maximum number of samples to evaluate (null = all)
+max_samples: 70  # Maximum number of samples to evaluate (null = all)
 batch_size: 8  # Batch size for evaluation
-max_new_tokens: 512  # Maximum number of new tokens to generate
+max_new_tokens: 4000  # Maximum number of new tokens to generate
 
 # Output configuration
 output_dir: "./evaluation_results"  # Directory to save evaluation results

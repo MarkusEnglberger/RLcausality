@@ -11,7 +11,7 @@ class Corr2CauseDataProcessor:
     """Processor for the corr2cause datasetd."""
 
     def __init__(self, cache_dir: Optional[str] = None):
-        self.cache_dir = cache_dir or "./data/cache"
+        self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
 
     def load_dataset(self):
