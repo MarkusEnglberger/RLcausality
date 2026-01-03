@@ -23,9 +23,10 @@ def evaluate_gpt_on_dataset(
     output_file: str,
     reasoning_effort: str,
     show_samples: int = 3,
+    beginning: int = 0,
 ) -> Dict:
     
-    dataset = dataset.select(range(min(max_samples, len(dataset))))
+    dataset = dataset.select(range(beginning, min(max_samples, len(dataset))))
 
     total = len(dataset)
     correct = 0
@@ -194,6 +195,7 @@ def main():
     max_samples = 100
     show_samples = 3
     reasoning_effort = "medium"  # Options: "low", "medium" (default), "high"
+    beginning = 100
 
     # Data path - using GPT formatted data
     data_path = "./data/processed/GPT"
@@ -223,7 +225,8 @@ def main():
         max_samples=max_samples,
         show_samples=show_samples,
         output_file=output_file,
-        reasoning_effort=reasoning_effort
+        reasoning_effort=reasoning_effort,
+        beginning=beginning
     )
 
     print("Evaluation complete!")

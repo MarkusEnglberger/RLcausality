@@ -117,6 +117,25 @@ def evaluate_dataset(model,tokenizer,dataset,max_new_tokens,batch_size,max_sampl
 
     print(f"Acc={accuracy:.2%}, F1={f1:.2%}, P={precision:.2%}, R={recall:.2%} ({correct}/{total})")
 
+    # Return results dictionary
+    return {
+        'predictions': predictions,
+        'metrics': {
+            'accuracy': accuracy,
+            'f1': f1,
+            'precision': precision,
+            'recall': recall,
+            'answered_rate': answered_rate,
+            'total_samples': total,
+            'correct': correct,
+            'no_answer_count': no_answer_count,
+            'true_positives': true_positives,
+            'false_positives': false_positives,
+            'true_negatives': true_negatives,
+            'false_negatives': false_negatives
+        }
+    }
+
 
 def main():
     config_path = os.path.join(os.path.dirname(__file__), '..', 'configs', 'evaluation_config.yaml')
@@ -131,10 +150,21 @@ def main():
         dataset = load_from_disk(data_path)['test']
 
         # Evaluate
-        evaluate_dataset(model=model,tokenizer=tokenizer,dataset=dataset,max_new_tokens=config['max_new_tokens'],batch_size=config['batch_size'],
+        results = evaluate_dataset(model=model,tokenizer=tokenizer,dataset=dataset,max_new_tokens=config['max_new_tokens'],batch_size=config['batch_size'],
             max_samples=config['max_samples'], show_samples=config['show_samples'])
 
-    print(f"Evaluation complete!")
+        all_results[subset] = results
+
+    # Save all results to JSON files
+    output_dir = config['output_dir']
+
+    # Save complete results (predictions + metrics)
+    complete_results_file = os.path.join(output_dir, 'complete_results.json')
+    with open(complete_results_file, 'w', encoding='utf-8') as f:
+        json.dump(all_results, f, indent=2, ensure_ascii=False)
+    print(f"Saved complete results to {complete_results_file}")
+
+    print(f"Evaluation complete! All outputs saved to {output_dir}")
     
 
 if __name__ == "__main__":

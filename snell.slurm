@@ -24,13 +24,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Create logs directory
-mkdir -p logs
+
 
 # Set environment variables
 export TRANSFORMERS_CACHE=./data/cache
 export HF_HOME=./data/cache
-export WANDB_PROJECT="corr2cause-grpo-deepseek"
-
 # CUDA configuration
 #export CUDA_HOME=/sw/arch/RHEL9/EB_production/2023/software/CUDA/12.1.1
 #export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
@@ -47,9 +45,14 @@ echo "Number of GPUs: $SLURM_GPUS"
 echo "Working directory: $(pwd)"
 nvidia-smi
 
+mkdir -p data/processed/sft_deepseek
+mkdir -p models/deepseek_sft_lora_4bit
+python scripts/prepare_sft_data.py
+python scripts/train_sft_lora.py configs/sft_config_deepseek.yaml
+
 #python scripts/data_preprocessing_simple.py
 #python scripts/evaluate_gpt_simple.py
-python scripts/evaluate_model_simple.py
+#python scripts/evaluate_model_simple.py
 
 #torchrun --nproc_per_node=1 --nnodes=1 --node_rank=0 --master_addr=localhost --master_port=29501 \
 #    scripts/train_grpo_simple.py \

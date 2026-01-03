@@ -1,0 +1,78 @@
+# SFT Training Configuration for DeepSeek-R1-Distill-Qwen-32B
+# Supervised Fine-Tuning with LoRA and 4-bit quantization on correct reasoning traces
+
+# Model configuration
+model_name_or_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+
+# Data configuration
+dataset_path: "./data/processed/sft_deepseek"
+max_train_samples: null  # Use all available correct traces (96 samples from GPT)
+
+# Output configuration
+output_dir: "./models/deepseek_sft_lora_4bit"
+run_name: "deepseek-32b-sft-lora-4bit"
+
+# LoRA configuration
+use_lora: true
+lora_r: 16  # LoRA rank (lower for memory efficiency)
+lora_alpha: 32  # LoRA scaling factor (typically 2x the rank)
+lora_dropout: 0.05
+lora_target_modules: "q_proj,v_proj,k_proj,o_proj,gate_proj,up_proj,down_proj"
+
+# 4-bit Quantization configuration
+use_4bit: true
+bnb_4bit_quant_type: "nf4"  # NormalFloat4 quantization
+use_nested_quant: true  # Double quantization for further memory savings
+
+# Sequence length
+max_seq_length: 4096  # Maximum context length for DeepSeek
+
+# Training hyperparameters
+per_device_train_batch_size: 1  # Very small due to long sequences and large model
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 8  # Effective batch size = 8
+learning_rate: 2.0e-5  # Higher learning rate for SFT compared to GRPO
+lr_scheduler_type: "cosine"
+warmup_ratio: 0.1
+
+# Training duration
+num_train_epochs: 3  # Multiple epochs since we have limited data (96 samples)
+max_steps: -1  # Use epochs instead
+
+# Optimization
+optim: "paged_adamw_8bit"  # Memory-efficient optimizer for 4-bit training
+weight_decay: 0.01
+max_grad_norm: 1.0
+gradient_checkpointing: true  # Essential for memory savings
+
+# Mixed precision
+bf16: true  # Use bfloat16 for stability with 4-bit quantization
+fp16: false
+tf32: false
+
+# Evaluation and checkpointing
+eval_strategy: "steps"
+eval_steps: 20  # Evaluate frequently since dataset is small
+save_strategy: "steps"
+save_steps: 20
+save_total_limit: 3  # Keep only best 3 checkpoints
+load_best_model_at_end: true
+metric_for_best_model: "eval_loss"
+
+# Logging
+logging_steps: 5
+logging_first_step: true
+report_to: "none"  # Disable WandB logging (change to "wandb" if logged in)
+wandb_project: "corr2cause-sft"
+
+# Other
+seed: 42
+dataloader_num_workers: 4
+remove_unused_columns: false
+
+# Notes:
+# - With 96 correct samples, we'll do 3 epochs for ~300 total training steps
+# - 4-bit quantization reduces memory from ~64GB to ~16GB
+# - LoRA makes only ~1% of parameters trainable
+# - Gradient checkpointing trades compute for memory
+# - paged_adamw_8bit further reduces optimizer memory footprint
