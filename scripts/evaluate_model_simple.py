@@ -16,8 +16,8 @@ def load_config(config_path: str) -> Dict:
 
 def load_model_and_tokenizer(model_path: str, use_4bit: bool = False):
     print(f"Loading model from {model_path}...")
-    tokenizer = AutoTokenizer.from_pretrained(model_path,trust_remote_code=True, padding_side="left")
-    model_kwargs = {"trust_remote_code": True, "torch_dtype": torch.float16, "device_map": "auto"}
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True, padding_side="left")
+    model_kwargs = {"trust_remote_code": True, "device_map": "auto", "attn_implementation": "flash_attention_2"}
     if use_4bit:
         model_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4") 
     is_peft_model = os.path.exists(os.path.join(model_path, "adapter_config.json"))
@@ -26,8 +26,8 @@ def load_model_and_tokenizer(model_path: str, use_4bit: bool = False):
             adapter_config = json.load(f)
         model_name = adapter_config.get("base_model_name_or_path")
         print("Detected PEFT model. Loading base model + adapter...")
-        model=AutoModelForCausalLM.from_pretrained(model_path, **model_kwargs)
-        model = PeftModel.from_pretrained(model, model_name, is_trainable=True)
+        model=AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+        model = PeftModel.from_pretrained(model, model_path)
     else:
         model=AutoModelForCausalLM.from_pretrained(model_path, **model_kwargs)
     model.eval()
@@ -57,7 +57,8 @@ def evaluate_dataset(model,tokenizer,dataset,max_new_tokens,batch_size,max_sampl
         batch = dataset[i:batch_end]
         prompts = batch["query"]
 
-        inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=max_new_tokens).to(model.device)
+        # Note: prompts are already formatted with chat template from preprocessing
+        inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=False).to(model.device)
 
         # Generate
         with torch.no_grad():
@@ -65,13 +66,12 @@ def evaluate_dataset(model,tokenizer,dataset,max_new_tokens,batch_size,max_sampl
                 eos_token_id=tokenizer.eos_token_id)
 
         # Decode and extract answers
-        for j, output in enumerate(outputs):
-            # Decode only the generated part (not the prompt)
-            generated_text = tokenizer.decode(
-                output[inputs.input_ids.shape[1]:],
-                skip_special_tokens=True)
+        prompt_len = inputs["input_ids"].shape[1]      # padded batch length
+        gen_only_ids = outputs[:, prompt_len:]         # generated tokens only (works with LEFT padding)
+        gen_texts = tokenizer.batch_decode(gen_only_ids, skip_special_tokens=True)
+        for j, generated_text in enumerate(gen_texts):
             predicted = extract_answer(generated_text)
-            ground_truth = bool(batch['label'][j])
+            ground_truth = int(batch["label"][j]) == 1  # safer than bool(...)
 
             if predicted is None:
                 no_answer_count += 1
@@ -79,12 +79,13 @@ def evaluate_dataset(model,tokenizer,dataset,max_new_tokens,batch_size,max_sampl
                 correct += 1
 
             predictions.append({
-                'input': batch["query"][j],
-                'ground_truth': ground_truth,
-                'predicted': predicted,
-                'generated_text': generated_text,
-                'is_correct': predicted == ground_truth if predicted is not None else False
+                "input": batch["query"][j],
+                "ground_truth": ground_truth,
+                "predicted": predicted,
+                "generated_text": generated_text,
+                "is_correct": (predicted == ground_truth) if predicted is not None else False,
             })
+
 
             # Display sample predictions
             if samples_shown < show_samples:
@@ -143,17 +144,11 @@ def main():
     config = load_config(config_path)
     os.makedirs(config['output_dir'], exist_ok=True)
     model, tokenizer = load_model_and_tokenizer(config['model_path'], config['use_4bit'])
-    all_results = {}
-    for subset in config["subsets"]:
-        print(f"Evaluating on subset: {subset}")
-        data_path = config['local_data_path']
-        dataset = load_from_disk(data_path)['test']
-
-        # Evaluate
-        results = evaluate_dataset(model=model,tokenizer=tokenizer,dataset=dataset,max_new_tokens=config['max_new_tokens'],batch_size=config['batch_size'],
+    data_path = config['local_data_path']
+    dataset = load_from_disk(data_path)['train']
+    results = evaluate_dataset(model=model,tokenizer=tokenizer,dataset=dataset,max_new_tokens=config['max_new_tokens'],batch_size=config['batch_size'],
             max_samples=config['max_samples'], show_samples=config['show_samples'])
 
-        all_results[subset] = results
 
     # Save all results to JSON files
     output_dir = config['output_dir']
@@ -161,7 +156,7 @@ def main():
     # Save complete results (predictions + metrics)
     complete_results_file = os.path.join(output_dir, 'complete_results.json')
     with open(complete_results_file, 'w', encoding='utf-8') as f:
-        json.dump(all_results, f, indent=2, ensure_ascii=False)
+        json.dump(results, f, indent=2, ensure_ascii=False)
     print(f"Saved complete results to {complete_results_file}")
 
     print(f"Evaluation complete! All outputs saved to {output_dir}")

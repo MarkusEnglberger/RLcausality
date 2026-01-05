@@ -6,21 +6,13 @@
 #model_name_or_path: "./models/deepseek_sft_model"  # Path to DeepSeek SFT checkpoint
 #model_name_or_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 model_name_or_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
-use_flash_attention: false
-max_prompt_length: 512
-max_completion_length: 512 # Reduced to save memory during generation
-
-# LoRA configuration (for GRPO fine-tuning)
-use_lora: true
-lora_r: 32  # Moderate rank for GRPO adapters
-lora_alpha: 32
-lora_dropout: 0.05
-lora_target_modules: "q_proj,v_proj,k_proj,o_proj,gate_proj,up_proj,down_proj"
+max_prompt_length: 3000
+max_completion_length: 3000 # Reduced to save memory during generation
 
 
 # 4-bit has dtype issues with DeepSpeed parameter gathering during generation
-use_4bit: false
-use_8bit: true
+use_4bit: true
+#use_8bit: true
 
 # Data configuration
 dataset_path: "./data/processed/grpo_deepseek"
@@ -62,8 +54,8 @@ max_grad_norm: 1.0
 gradient_checkpointing: true  # Essential for 7B model
 
 # Mixed precision (depends on GPU generation)
-bf16: false  # Set to true for Ampere+ GPUs (A100, RTX 3090+)
-fp16: true  # Use fp16 for Turing GPUs (RTX 2080 Ti)
+bf16: true  # Set to true for Ampere+ GPUs (A100, RTX 3090+)
+fp16: false  # Use fp16 for Turing GPUs (RTX 2080 Ti)
 tf32: false  # Enable on Ampere+ GPUs
 
 # Evaluation

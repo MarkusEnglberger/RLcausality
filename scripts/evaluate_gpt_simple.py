@@ -192,7 +192,7 @@ def evaluate_gpt_on_dataset(
 def main():
     # Configuration
     model_name = "gpt-5.2"  # Change to "gpt-4", "gpt-4-turbo", etc. as needed
-    max_samples = 100
+    max_samples = 200
     show_samples = 3
     reasoning_effort = "medium"  # Options: "low", "medium" (default), "high"
     beginning = 100

@@ -45,18 +45,14 @@ echo "Number of GPUs: $SLURM_GPUS"
 echo "Working directory: $(pwd)"
 nvidia-smi
 
-mkdir -p data/processed/sft_deepseek
-mkdir -p models/deepseek_sft_lora_4bit
-python scripts/prepare_sft_data.py
-python scripts/train_sft_lora.py configs/sft_config_deepseek.yaml
+#python scripts/prepare_sft_data.py
+#python scripts/train_sft_lora.py configs/sft_config_deepseek.yaml
 
 #python scripts/data_preprocessing_simple.py
 #python scripts/evaluate_gpt_simple.py
-#python scripts/evaluate_model_simple.py
+python scripts/evaluate_model_simple.py
 
 #torchrun --nproc_per_node=1 --nnodes=1 --node_rank=0 --master_addr=localhost --master_port=29501 \
-#    scripts/train_grpo_simple.py \
-#    configs/grpo_config_deepseek.yaml \
-#    --run_name "grpo-deepseek7b-torchrun-${SLURM_JOB_ID}"
+#    scripts/train_grpo_simple.py  configs/grpo_config_deepseek.yaml --run_name "grpo-deepseek7b-torchrun-${SLURM_JOB_ID}"
 
 echo "Job finished at: $(date)"

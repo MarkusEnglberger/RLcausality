@@ -1,25 +1,32 @@
 from datasets import load_dataset
 from typing import Dict
 import os
+from transformers import AutoTokenizer
+
+# Initialize tokenizer for chat template formatting
+tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", trust_remote_code=True)
 
 def format_for_grpo(example: Dict) -> Dict:
         instruction = (
-            """Given a premise describing statistical relationships between variables, determine if the stated 
-            causal hypothesis is implied by the given information. 
-            Conclude with your final answer as either "Therefore: Yes" or "Therefore: No".\n\n"""
-        )
+             "Given a premise describing statistical relationships between variables, determine if the stated "
+              "causal hypothesis is implied by the given information. "
+              'Conclude with your final answer as either "Therefore: Yes" or "Therefore: No".\n\n')
 
-        prompt = f"{instruction}. Premise and Hypothesis:\n{example['input']}\n\n"
+        prompt = f"{instruction}Premise and Hypothesis:\n{example['input']}\n\n"
+
+        # Format using chat template
+        messages = [{"role": "user", "content": prompt}]
+        formatted_query = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
         # For GRPO, we need the ground truth label for reward calculation
-        return {"query": prompt, "label": example['label'], "num_variables": example['num_variables'],
+        return {"query": formatted_query, "label": example['label'], "num_variables": example['num_variables'],
             "template": example['template']}
 
 def format_for_GPT(example: Dict) -> Dict:
         instruction = (
-            """In the following, you have to decide whether the Hypothesis is implied by the Premise. You should roughly follow the PC-algorithm and show your reasoning. 
-            Only give the answer at the end, ending your answer with either "Therefore: Yes" or "Therefore: No".\n\n""")
-        prompt = f"{instruction}. Premise and Hypothesis:\n{example['input']}\n\n"
+            "In the following, you have to decide whether the Hypothesis is implied by the Premise. You should roughly follow the PC-algorithm and show your reasoning. "
+            'Only give the answer at the end, ending your answer by either "Therefore: Yes" or "Therefore: No".\n\n')
+        prompt = f"{instruction} Premise and Hypothesis:\n{example['input']}\n\n"
 
         # For GRPO, we need the ground truth label for reward calculation
         return {"query": prompt, "label": example['label'], "num_variables": example['num_variables'],

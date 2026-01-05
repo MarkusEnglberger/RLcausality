@@ -5,6 +5,10 @@ This script filters correct reasoning traces and prepares them for fine-tuning.
 import json
 import os
 from datasets import Dataset, DatasetDict
+from transformers import AutoTokenizer
+
+# Initialize tokenizer for chat template formatting
+tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", trust_remote_code=True)
 
 def load_gpt_predictions(predictions_file: str):
     """Load GPT predictions from JSON file."""
@@ -22,8 +26,13 @@ def filter_correct_traces(predictions_data):
 def format_for_sft(correct_traces):
     formatted_data = []
     for trace in correct_traces:
+        # Apply chat template to the input query
+        # trace['input'] contains the raw user prompt
+        messages = [{"role": "user", "content": trace['input']}]
+        formatted_query = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+
         formatted_data.append({
-            'query': trace['input'],
+            'query': formatted_query,  # Now properly formatted with chat template
             'response': trace['generated_text'],
             'label': trace['ground_truth'],
             'predicted': trace['predicted']

@@ -3,12 +3,13 @@
 
 # Model configuration
 #model_path: "./models/grpo_model/checkpoint-100"  # Path to model checkpoint (SFT or GRPO)
-model_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+#model_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+model_path: "./models/deepseek_sft_lora_4bit"
 use_4bit: true  # Use 4-bit quantization for model loading
 
 # Dataset configuration
-subsets:  # Test subsets to evaluate on
-  - default
+#subsets:  # Test subsets to evaluate on
+#  - default
   # - perturbation_by_refactorization
   # - perturbation_by_paraphrasing
 

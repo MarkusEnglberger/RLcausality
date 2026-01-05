@@ -14,15 +14,15 @@ from transformers import (
 )
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig as TRLSFTConfig
 import wandb
 from dataclasses import dataclass, field
 from typing import Optional
 
 
 @dataclass
-class SFTConfig(TrainingArguments):
-    """Extended TrainingArguments with custom SFT parameters."""
+class SFTConfig(TRLSFTConfig):
+    """Extended TRL SFTConfig with custom parameters."""
 
     # Model configuration
     model_name_or_path: str = field(default="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B")
@@ -50,14 +50,14 @@ class SFTConfig(TrainingArguments):
     wandb_project: str = field(default="corr2cause-sft") 
 
 
-def create_peft_config(training_args: SFTConfig):
+def create_peft_config(config: SFTConfig):
     """Create PEFT (LoRA) configuration."""
-    target_modules = training_args.lora_target_modules.split(",")
+    target_modules = config.lora_target_modules.split(",")
 
     peft_config = LoraConfig(
-        r=training_args.lora_r,
-        lora_alpha=training_args.lora_alpha,
-        lora_dropout=training_args.lora_dropout,
+        r=config.lora_r,
+        lora_alpha=config.lora_alpha,
+        lora_dropout=config.lora_dropout,
         target_modules=target_modules,
         bias="none",
         task_type="CAUSAL_LM",
@@ -66,9 +66,9 @@ def create_peft_config(training_args: SFTConfig):
     return peft_config
 
 
-def load_model_and_tokenizer(training_args: SFTConfig):
+def load_model_and_tokenizer(config: SFTConfig):
     """Load model with 4-bit quantization and tokenizer."""
-    print(f"Loading model: {training_args.model_name_or_path}")
+    print(f"Loading model: {config.model_name_or_path}")
 
     # Configure quantization if enabled
     model_kwargs = {
@@ -76,11 +76,13 @@ def load_model_and_tokenizer(training_args: SFTConfig):
         "device_map": "auto",
     }
 
-    if training_args.use_4bit:
-        bnb_config = BitsAndBytesConfig( load_in_4bit=training_args.use_4bit,
-                                        bnb_4bit_quant_type=training_args.bnb_4bit_quant_type,
-                                          bnb_4bit_compute_dtype=torch.bfloat16,
-                                          bnb_4bit_use_double_quant=training_args.use_nested_quant,)
+    if config.use_4bit:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=config.use_4bit,
+            bnb_4bit_quant_type=config.bnb_4bit_quant_type,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=config.use_nested_quant,
+        )
         model_kwargs["quantization_config"] = bnb_config
         model_kwargs["torch_dtype"] = torch.bfloat16
     else:
@@ -88,31 +90,45 @@ def load_model_and_tokenizer(training_args: SFTConfig):
 
     # Load model
     model = AutoModelForCausalLM.from_pretrained(
-        training_args.model_name_or_path,
+        config.model_name_or_path,
         **model_kwargs
     )
 
     # Prepare model for k-bit training if using quantization
-    if training_args.use_4bit:
+    if config.use_4bit:
         model = prepare_model_for_kbit_training(model)
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
-        training_args.model_name_or_path,
+        config.model_name_or_path,
         trust_remote_code=True,
         padding_side="right",  # Use right padding for training
+        model_max_length=config.max_seq_length,  # Set max sequence length
     )
+
+    # Ensure tokenizer has pad token
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
 
     return model, tokenizer
 
 
-def formatting_prompts_func(examples):
-    output_texts = []
-    for query, response in zip(examples["query"], examples["response"]):
-        # Format as a conversation with clear delimiters
-        text = f"{query}\n\n{response}"
-        output_texts.append(text)
-    return output_texts
+def formatting_prompts_func(example):
+    """Format a single example for SFT training using chat template.
+
+    The query field already contains the chat-formatted user prompt from preprocessing,
+    which includes special tokens like <｜User｜> and <｜Assistant｜><think>.
+    We need to append the assistant's response and close with the EOS token.
+    """
+    # Query already has: <bos><｜User｜>[prompt]<｜Assistant｜><think>\n
+    # We need to add: [response]<｜end▁of▁sentence｜>
+
+    # Get the EOS token
+    eos_token = "<｜end▁of▁sentence｜>"
+
+    # Combine query (which has the chat template prefix) with the response
+    text = f"{example['query']}{example['response']}{eos_token}"
+    return text
 
 
 def main():
@@ -157,10 +173,8 @@ def main():
         args=training_args,
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"],
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         formatting_func=formatting_prompts_func,
-        max_seq_length=training_args.max_seq_length,
-        packing=False,  # Don't pack sequences for reasoning tasks
     )
 
     # Train
