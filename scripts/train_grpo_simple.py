@@ -37,7 +37,7 @@ def create_model_and_tokenizer(training_args, extra_args):
     tokenizer=AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True, padding_side="left")
 
     # Configure model loading with optional 4-bit quantization
-    model_kwargs = {"trust_remote_code": True}
+    model_kwargs = {"trust_remote_code": True, "attn_implementation": "sdpa"}
 
     if extra_args.get('use_4bit', False):
         print("Using 4-bit quantization (NF4)")
@@ -54,12 +54,33 @@ def create_model_and_tokenizer(training_args, extra_args):
 
     is_peft_model = os.path.exists(os.path.join(model_name_or_path, "adapter_config.json"))
     if is_peft_model:
-        print("Model has existing PEFT adapters")
+        print("Model has existing PEFT adapters - merging into base model for GRPO")
         with open(os.path.join(model_name_or_path, "adapter_config.json"), "r") as f:
             adapter_config = json.load(f)
         model_name = adapter_config.get("base_model_name_or_path", model_name_or_path)
         model = AutoModelForCausalLM.from_pretrained(model_name,**model_kwargs)
-        model = PeftModel.from_pretrained(model, model_name_or_path, is_trainable=True)
+        model = PeftModel.from_pretrained(model, model_name_or_path, is_trainable=False)
+
+        # Merge adapters into base model to ensure reference model is properly initialized
+        print("Merging LoRA adapters into base model...")
+        model = model.merge_and_unload()
+        print("Adapters merged successfully")
+
+        # Now add new LoRA adapters for GRPO training
+        if extra_args.get('use_lora', False):
+            if extra_args.get('use_4bit', False):
+                model = prepare_model_for_kbit_training(model)
+            target_modules = extra_args.get('lora_target_modules', 'q_proj,v_proj').split(",")
+            peft_config = LoraConfig(
+                r=extra_args.get('lora_r', 16),
+                lora_alpha=extra_args.get('lora_alpha', 16),
+                lora_dropout=extra_args.get('lora_dropout', 0.05),
+                target_modules=target_modules,
+                bias="none",
+                task_type="CAUSAL_LM"
+            )
+            model = get_peft_model(model, peft_config)
+            model.print_trainable_parameters()
     elif extra_args.get('use_lora', False):
         model=AutoModelForCausalLM.from_pretrained(model_name_or_path, **model_kwargs)
         # Prepare model for k-bit training if using quantization
@@ -83,7 +104,8 @@ def main():
     training_args = parser.parse_yaml_file(yaml_file=sys.argv[1], allow_extra_keys=True)[0]
 
     # Hardcoded paths and settings
-    model_name_or_path = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+    #model_name_or_path = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+    model_name_or_path = "./models/deepseek_sft_lora_4bit"
     dataset_path = "./data/processed/grpo"
     max_train_samples = 10000
 
@@ -113,14 +135,25 @@ def main():
         'use_4bit': True
     }
     model, tokenizer = create_model_and_tokenizer(training_args, extra_args)
+
+    # Enable gradient checkpointing if specified
+    if training_args.gradient_checkpointing:
+        model.gradient_checkpointing_enable()
+        if hasattr(model, "enable_input_require_grads"):
+            model.enable_input_require_grads()
+
     trainer = GRPOTrainer(
         model=model,
         args=training_args,
         processing_class=tokenizer,
         reward_funcs=[reward_fn],  # Must be a list of reward functions
         train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"],
+        eval_dataset=dataset["validation"].select(range(100, 111)),  # Only evaluate on samples 100-110
     )
+
+    # Ensure value head is in the correct dtype for 4-bit training
+    if extra_args.get('use_4bit', False) and hasattr(trainer.model, 'v_head'):
+        trainer.model.v_head = trainer.model.v_head.to(torch.bfloat16)
     trainer.train()
     trainer.save_model(training_args.output_dir)
     tokenizer.save_pretrained(training_args.output_dir)

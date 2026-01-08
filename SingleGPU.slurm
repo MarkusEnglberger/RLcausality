@@ -4,7 +4,7 @@
 #SBATCH --error=logs/grpo_%j.err
 #SBATCH --time=3:00:00
 #SBATCH --partition=gpu_h100
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=14
@@ -52,9 +52,9 @@ nvidia-smi
 
 #python scripts/data_preprocessing_simple.py
 #python scripts/evaluate_gpt_simple.py
-#python scripts/evaluate_model_simple.py
+python scripts/evaluate_model_simple.py
 
-torchrun --nproc_per_node=2 --nnodes=1 --node_rank=0 --master_addr=localhost --master_port=29501 \
-    scripts/train_grpo_simple.py  configs/grpo_config_deepseek.yaml --run_name "grpo-deepseek32b-torchrun-${SLURM_JOB_ID}"
+#torchrun --nproc_per_node=2 --nnodes=1 --node_rank=0 --master_addr=localhost --master_port=29501 \
+#    scripts/train_grpo_simple.py  configs/grpo_config_deepseek.yaml --run_name "grpo-deepseek32b-torchrun-${SLURM_JOB_ID}"
 
 echo "Job finished at: $(date)"

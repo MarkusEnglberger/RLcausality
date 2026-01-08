@@ -61,32 +61,45 @@ def create_train_val_split(data, val_ratio=0.15):
 
 def main():
     # Paths
-    predictions_file = './evaluation_results/gpt_predictions_gpt-5.2_20260101_195905.json'
+    evaluation_results_dir = './evaluation_results'
     output_dir = './data/processed/sft_deepseek'
 
     os.makedirs(output_dir, exist_ok=True)
-    with open(predictions_file, 'r', encoding='utf-8') as f:
-        predictions_data = json.load(f)
-    correct_traces = filter_correct_traces(predictions_data)
 
-    formatted_data = format_for_sft(correct_traces)
+    # Find all GPT prediction JSON files in the evaluation_results directory
+    import glob
+    prediction_files = glob.glob(os.path.join(evaluation_results_dir, 'gpt_predictions_*.json'))
 
-    print("\nCreating train/val split...")
-    train_data, val_data = create_train_val_split(formatted_data, val_ratio=0.15)
+    print(f"Found {len(prediction_files)} prediction files:")
+
+    # Load and merge all correct traces from all files
+    all_correct_traces = []
+    for predictions_file in prediction_files:
+        with open(predictions_file, 'r', encoding='utf-8') as f:
+            predictions_data = json.load(f)
+        correct_traces = filter_correct_traces(predictions_data)
+        all_correct_traces.extend(correct_traces)
+
+    print(f"\n{'='*60}")
+    print(f"Total correct traces from all files: {len(all_correct_traces)}")
+    print(f"{'='*60}")
+
+    # Format the merged data for SFT
+    formatted_data = format_for_sft(all_correct_traces)
 
     # Create HuggingFace Dataset
-    print("\nCreating HuggingFace datasets...")
-    train_dataset = Dataset.from_list(train_data)
-    val_dataset = Dataset.from_list(val_data)
+    print("\nCreating HuggingFace dataset...")
+    train_dataset = Dataset.from_list(formatted_data)
+    print(f"Train samples: {len(train_dataset)}")
 
     dataset_dict = DatasetDict({
-        'train': train_dataset,
-        'validation': val_dataset
+        'train': train_dataset
     })
 
     # Save to disk
     print(f"\nSaving datasets to {output_dir}...")
     dataset_dict.save_to_disk(output_dir)
+    print(f"Dataset saved successfully!")
 
 if __name__ == "__main__":
     main()

@@ -19,9 +19,9 @@ local_data_path: "./data/processed/grpo"  # Path to local preprocessed dataset
 cache_dir: "./data/cache"  # Cache directory for HuggingFace datasets
 
 # Evaluation configuration
-max_samples: 300  # Maximum number of samples to evaluate (null = all)
-batch_size: 32  # Batch size for evaluation
-max_new_tokens: 4000  # Maximum number of new tokens to generate
+max_samples: 30  # Maximum number of samples to evaluate (null = all)
+batch_size: 10  # Batch size for evaluation
+max_new_tokens: 1500  # Maximum number of new tokens to generate
 
 # Output configuration
 output_dir: "./evaluation_results"  # Directory to save evaluation results

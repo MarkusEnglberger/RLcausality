@@ -84,9 +84,7 @@ def load_model_and_tokenizer(config: SFTConfig):
             bnb_4bit_use_double_quant=config.use_nested_quant,
         )
         model_kwargs["quantization_config"] = bnb_config
-        model_kwargs["torch_dtype"] = torch.bfloat16
-    else:
-        model_kwargs["torch_dtype"] = torch.bfloat16
+    model_kwargs["torch_dtype"] = torch.bfloat16
 
     # Load model
     model = AutoModelForCausalLM.from_pretrained(
@@ -154,7 +152,6 @@ def main():
         print(f"Limited training to {len(dataset['train'])} samples")
 
     print(f"Train samples: {len(dataset['train'])}")
-    print(f"Validation samples: {len(dataset['validation'])}")
 
     # Load model and tokenizer
     model, tokenizer = load_model_and_tokenizer(training_args)
@@ -172,7 +169,7 @@ def main():
         model=model,
         args=training_args,
         train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"],
+        eval_dataset=dataset["train"].select(range(100, 111)),
         processing_class=tokenizer,
         formatting_func=formatting_prompts_func,
     )

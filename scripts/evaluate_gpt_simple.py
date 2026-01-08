@@ -26,7 +26,7 @@ def evaluate_gpt_on_dataset(
     beginning: int = 0,
 ) -> Dict:
     
-    dataset = dataset.select(range(beginning, min(max_samples, len(dataset))))
+    dataset = dataset.select(range(beginning, min(beginning + max_samples, len(dataset))))
 
     total = len(dataset)
     correct = 0
@@ -116,7 +116,7 @@ def evaluate_gpt_on_dataset(
             api_errors += 1
             print(f"\nError on sample {i}: {str(e)}")
             predictions.append({
-                'index': i,
+                'index': beginning + i,
                 'input': prompt,
                 'ground_truth': ground_truth,
                 'predicted': None,
@@ -141,6 +141,7 @@ def evaluate_gpt_on_dataset(
     f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
     results = {
+        'begninning': beginning,
         'model': model_name,
         'total_samples': total,
         'correct': correct,
@@ -195,7 +196,7 @@ def main():
     max_samples = 200
     show_samples = 3
     reasoning_effort = "medium"  # Options: "low", "medium" (default), "high"
-    beginning = 100
+    beginning = 300
 
     # Data path - using GPT formatted data
     data_path = "./data/processed/GPT"

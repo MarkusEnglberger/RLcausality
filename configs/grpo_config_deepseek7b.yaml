@@ -5,7 +5,7 @@
 # Model configuration
 #model_name_or_path: "./models/deepseek_sft_model"  # Path to DeepSeek SFT checkpoint
 #model_name_or_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
-model_name_or_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+model_name_or_path: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 max_prompt_length: 1500
 max_completion_length: 2000 # Reduced to save memory during generation
 
@@ -19,7 +19,7 @@ dataset_path: "./data/processed/grpo_deepseek"
 max_train_samples: 10000  
 
 # Output configuration
-output_dir: "./models/deepseek_grpo_model"
+output_dir: "./models/deepseek_grpo_model7b"
 
 # Sample logging configuration (using TRL's built-in logging)
 log_completions: true  # TRL built-in feature to log prompts and completions
@@ -34,7 +34,7 @@ per_device_eval_batch_size: 12  # Must be 2 so global batch (2*2=4) is divisible
 gradient_accumulation_steps: 1  # Increased to maintain effective batch size
 
 # Learning rate (very low for GRPO on large model)
-learning_rate:  5.0e-5 
+learning_rate:  1.0e-5 
 lr_scheduler_type: "cosine"
 warmup_ratio: 0.01
 
@@ -52,7 +52,7 @@ beta: 0.04  # KL divergence coefficient
 optim: "adamw_torch"
 weight_decay: 0.01
 max_grad_norm: 1.0
-gradient_checkpointing: true  
+gradient_checkpointing: true  # Essential for 7B model
 
 # Mixed precision (depends on GPU generation)
 bf16: true  # Set to true for Ampere+ GPUs (A100, RTX 3090+)

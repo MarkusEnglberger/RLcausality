@@ -17,7 +17,7 @@ def load_config(config_path: str) -> Dict:
 def load_model_and_tokenizer(model_path: str, use_4bit: bool = False):
     print(f"Loading model from {model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True, padding_side="left")
-    model_kwargs = {"trust_remote_code": True, "device_map": "auto", "attn_implementation": "flash_attention_2"}
+    model_kwargs = {"trust_remote_code": True, "device_map": "auto", "attn_implementation": "sdpa"}
     if use_4bit:
         model_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4") 
     is_peft_model = os.path.exists(os.path.join(model_path, "adapter_config.json"))
@@ -42,7 +42,8 @@ def extract_answer(text: str) -> Optional[bool]:
     return None
 
 def evaluate_dataset(model,tokenizer,dataset,max_new_tokens,batch_size,max_samples,show_samples) -> Dict:
-    dataset = dataset.select(range(min(max_samples, len(dataset))))
+    beginning=800
+    dataset = dataset.select(range(beginning, min(beginning+max_samples, len(dataset))))
 
     total = len(dataset)
     correct = 0

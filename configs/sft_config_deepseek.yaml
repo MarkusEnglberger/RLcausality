@@ -28,15 +28,15 @@ use_nested_quant: true  # Double quantization for further memory savings
 max_seq_length: 4096  # Maximum context length for DeepSeek
 
 # Training hyperparameters
-per_device_train_batch_size: 1  # Very small due to long sequences and large model
+per_device_train_batch_size: 8
 per_device_eval_batch_size: 1
 gradient_accumulation_steps: 8  # Effective batch size = 8
-learning_rate: 2.0e-5  # Higher learning rate for SFT compared to GRPO
+learning_rate: 9.0e-5  
 lr_scheduler_type: "cosine"
-warmup_ratio: 0.1
+warmup_ratio: 0.01
 
 # Training duration
-num_train_epochs: 3  # Multiple epochs since we have limited data (96 samples)
+num_train_epochs: 10
 max_steps: -1  # Use epochs instead
 
 # Optimization
@@ -52,9 +52,9 @@ tf32: false
 
 # Evaluation and checkpointing
 eval_strategy: "steps"
-eval_steps: 20  # Evaluate frequently since dataset is small
+eval_steps: 80  # Evaluate frequently since dataset is small
 save_strategy: "steps"
-save_steps: 20
+save_steps: 160
 save_total_limit: 3  # Keep only best 3 checkpoints
 load_best_model_at_end: true
 metric_for_best_model: "eval_loss"
@@ -62,7 +62,7 @@ metric_for_best_model: "eval_loss"
 # Logging
 logging_steps: 5
 logging_first_step: true
-report_to: "none"  # Disable WandB logging (change to "wandb" if logged in)
+report_to: []  # Disable WandB logging (change to ["wandb"] if logged in)
 wandb_project: "corr2cause-sft"
 
 # Other
